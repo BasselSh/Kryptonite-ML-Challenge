@@ -16,9 +16,8 @@ from oml.registry import get_transforms_for_pretrained
 from oml.retrieval import RetrievalResults, AdaptiveThresholding
 from oml.samplers import BalanceSampler
 
-device = "cpu"
-epochs = 1
-
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+# epochs = 1
 
 def fix_seed(seed: int):
     random.seed(seed)
@@ -90,14 +89,14 @@ if __name__ == "__main__":
                     # proposed in baseline
                     rr = RetrievalResults.from_embeddings(embeddings, val, n_items=10)
                     rr = AdaptiveThresholding(n_std=2).process(rr)
-                    #rr.visualize(query_ids=[2, 1], dataset=val, show=True) # for train it semms useless
+                    #rr.visualize(query_ids=[2, 1], dataset=val, show=True) # for train it seems useless
                     results = calc_retrieval_metrics_rr(rr, map_top_k=(10,), cmc_top_k=(1, 5, 10))
                     for metric_name in results.keys():
                         for k, v in results[metric_name].items():
                             print(f"{metric_name}@{k}: {v.item()}")
 
                     val_epoch_loss.append(loss.item())  
-                    val_epoch_metric.apend(results)
+                    val_epoch_metric.append(results)
         
             # calculate average loss and metric per epoch
             train_losses.append(np.mean(train_epoch_loss))
