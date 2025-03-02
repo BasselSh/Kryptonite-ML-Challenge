@@ -49,7 +49,6 @@ if __name__ == "__main__":
         
         # losses and metric to save
         train_losses = []
-        val_losses = []
         val_metric = dict{}
     
         for epoch in range(n_epochs):
@@ -79,40 +78,27 @@ if __name__ == "__main__":
             ######################
             
             model.eval() # evaluation-mode
-            val_epoch_loss = []
             val_epoch_metric = []
             
             with torch.no_grad():
-                for batch in pbar:
-                    embeddings = inference(model, val, batch_size=32, num_workers=0, verbose=True)
+                embeddings = inference(model, val, batch_size=32, num_workers=0, verbose=True)
     
-                    # proposed in baseline
-                    rr = RetrievalResults.from_embeddings(embeddings, val, n_items=10)
-                    rr = AdaptiveThresholding(n_std=2).process(rr)
-                    #rr.visualize(query_ids=[2, 1], dataset=val, show=True) # for train it seems useless
-                    results = calc_retrieval_metrics_rr(rr, map_top_k=(10,), cmc_top_k=(1, 5, 10))
-                    for metric_name in results.keys():
-                        for k, v in results[metric_name].items():
-                            print(f"{metric_name}@{k}: {v.item()}")
+                # proposed in baseline
+                rr = RetrievalResults.from_embeddings(embeddings, val, n_items=10)
+                rr = AdaptiveThresholding(n_std=2).process(rr)
+                #rr.visualize(query_ids=[2, 1], dataset=val, show=True) # for train it seems useless
+                results = calc_retrieval_metrics_rr(rr, map_top_k=(10,), cmc_top_k=(1, 5, 10))
+                for metric_name in results.keys():
+                    for k, v in results[metric_name].items():
+                        print(f"{metric_name}@{k}: {v.item()}")
 
-                    val_epoch_loss.append(loss.item())  
-                    val_epoch_metric.append(results)
+                val_epoch_metric.append(results)
         
             # calculate average loss and metric per epoch
             train_losses.append(np.mean(train_epoch_loss))
-            val_losses.append(np.mean(val_epoch_loss))
             val_metric[epoch] = val_epoch_metric
     
-            # print training/validation statistics
-            print(f'Epoch {epoch + 1}: train_loss: {train_losses[-1]}, val_loss: {val_losses[-1]}')
-    
-            # save model if validation loss has decreased
-            if np.mean(val_epoch_loss) <= val_loss_min:
-                print('Validation loss decreased ({:.6f} --> {:.6f}).  Saving model ...'
-                      .format(val_loss_min, np.mean(val_epoch_loss)))
-                torch.save(model.state_dict(), saved_model)
-                val_loss_min = np.mean(val_epoch_loss)
-    
-        results = {'Train_loss': train_losses, 'Val_loss': val_losses, 'Val_metric': val_metric}
+        results = {'Train_loss': train_losses, 'Val_metric': val_metric}
+        torch.save(model.state_dict(), saved_model)
         
         return results
