@@ -26,11 +26,20 @@ pip install -e .
 cd ..
 ```
 
-2. In open-metric-learning/oml/inference/abstract.py comment the following: (lines 30-31)
+2. In open-metric-learning/oml/inference/abstract.py comment the following for enabeling inference with **cuda**: 
+
+(lines 30-31)
 
 ```python
     # if is_ddp():
     #     loader = patch_dataloader_to_ddp(loader)
+```
+(lines 50-52)
+
+```python
+    # data_to_sync = {"outputs": outputs, "ids": ids}
+    # data_synced = sync_dicts_ddp(data_to_sync, world_size=get_world_size_safe())
+    # outputs, ids = data_synced["outputs"], data_synced["ids"]
 ```
 
 3. Change device to **cuda** in **train.py**, **predict.py**, and **make_submission.py**
