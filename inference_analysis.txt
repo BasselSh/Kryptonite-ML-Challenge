@@ -1,0 +1,20 @@
+# General models
+ViT_B_16
+GFLOPS: 17.56
+
+Swin_T
+GFLOPS: 4.49
+
+EfficientNet_B0
+GFLOPS: 0.39
+params: 5.2M
+
+MobileFaceNet 
+params: 0.99M
+
+
+
+# Our models
+vits16_dino
+
+inference time: 0.31739187240600586
