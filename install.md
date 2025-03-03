@@ -1,3 +1,4 @@
+```bash
 conda create -n krypto python=3.10.12 -y
 
 conda activate krypto
@@ -13,6 +14,7 @@ pip install -r ci/requirements.txt
 pip install -e .
 
 cd ..
+```
 
 In open-metric-learning/oml/inference/abstract.py comment the following: (lines 30-31)
 
