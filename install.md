@@ -1,7 +1,17 @@
+# Install
+
+1. Create conda environment and install dependencies
+
 ```bash
+git clone git@github.com:BasselSh/Kryptonite-ML-Challenge.git
+
+cd Kryptonite-ML-Challenge
+
 conda create -n krypto python=3.10.12 -y
 
 conda activate krypto
+
+git clone https://github.com/OML-Team/open-metric-learning.git
 
 cd open-metric-learning
 
@@ -16,8 +26,11 @@ pip install -e .
 cd ..
 ```
 
-In open-metric-learning/oml/inference/abstract.py comment the following: (lines 30-31)
+2. In open-metric-learning/oml/inference/abstract.py comment the following: (lines 30-31)
 
+```python
     # if is_ddp():
     #     loader = patch_dataloader_to_ddp(loader)
+```
 
+3. Change device to **cuda** in **train.py**, **predict.py**, and **make_submission.py**
