@@ -8,14 +8,13 @@ from torch.utils.data import DataLoader
 
 from oml import datasets as d
 from oml.inference import inference
-from oml.losses import TripletLossWithMiner
+from oml.losses import TripletLoss
 from oml.metrics import calc_retrieval_metrics_rr
 from oml.miners import AllTripletsMiner
 from oml.models import ViTExtractor
 from oml.registry import get_transforms_for_pretrained
 from oml.retrieval import RetrievalResults, AdaptiveThresholding
 from oml.samplers import BalanceSampler
-from collections import defaultdict
 from torch.utils.tensorboard import SummaryWriter
 
 device = 'cuda'
@@ -30,9 +29,10 @@ def fix_seed(seed: int):
     torch.backends.cudnn.benchmark = False
 
 class Trainer:
-    def __init__(self, model, criterion, optimizer, epochs, batch_size, train_dataset, val_dataset, sampler):
+    def __init__(self, model, criterion, miner, optimizer, epochs, batch_size, train_dataset, val_dataset, sampler):
         self.model = model.to('cuda')
         self.criterion = criterion
+        self.miner = miner
         self.optimizer = optimizer
         self.writer = SummaryWriter(log_dir=f"{OUTPUT_DIR}/runs")
         self.epochs = epochs
@@ -47,11 +47,12 @@ class Trainer:
 
     def train_loop(self, pbar):
         total_loss = 0
-        self.model.train() # prep model for training
+        self.model.train()# prep model for training
         for batch in pbar:
             self.iter += 1
             embeddings = self.model(batch["input_tensors"].to(device))
-            loss = self.criterion(embeddings, batch["labels"].to(device))
+            anc, pos, neg = self.miner(embeddings, batch["labels"].to(device))
+            loss = self.criterion(anc, pos, neg)
             loss.backward()
             self.optimizer.step()
             self.optimizer.zero_grad()
@@ -107,10 +108,11 @@ if __name__ == "__main__":
     val_dataset = d.ImageQueryGalleryLabeledDataset(df_val, transform=transform)
 
     optimizer = Adam(model.parameters(), lr=1e-4)
-    criterion = TripletLossWithMiner(0.1, AllTripletsMiner(), need_logs=True)
+    miner = AllTripletsMiner(device=device)
+    criterion = TripletLoss()
     sampler = BalanceSampler(train_dataset.get_labels(), n_labels=4, n_instances=4)
 
-    trainer = Trainer(model, criterion, optimizer, epochs, batch_size, train_dataset, val_dataset, sampler)
+    trainer = Trainer(model, criterion, miner, optimizer, epochs, batch_size, train_dataset, val_dataset, sampler)
     # trainer.train_val()
     trainer.val_loop(0)
 
