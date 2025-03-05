@@ -6,12 +6,14 @@ from torch.utils.data import Dataset
 from torchvision.transforms import ToTensor
 import pandas as pd
 import numpy as np
-
+import PIL
+from torchvision.transforms.functional import to_pil_image
 class RealFakeTripletDataset(Dataset):
-    def __init__(self, root_dir, meta_path, transform=None):
+    def __init__(self, root_dir, meta_path, transform=None, transforms_ablu=None):
         """
         Custom dataset for triplet mining with real vs. fake tracking.
         """
+        self.transforms_ablu = transforms_ablu
         self.root_dir = root_dir
         if not transform:
             self.transform = ToTensor()
@@ -36,7 +38,7 @@ class RealFakeTripletDataset(Dataset):
                 img_name = os.path.basename(img_path)
                 img_index = os.path.join(identity, img_name)
                 self.image_paths.append(img_path)
-                self.labels.append(identity)  # Identity label
+                self.labels.append(int(identity))  # Identity label
                 self.real_fake_labels.append(self.meta[img_index])  # "real" or "fake"
 
     def __len__(self):
@@ -62,5 +64,11 @@ class RealFakeTripletDataset(Dataset):
 
         if self.transform:
             img = self.transform(img)
-
+        if self.transforms_ablu:
+            img_index = os.path.join(str(label), os.path.basename(img_path))
+            if isinstance(img, torch.Tensor):
+                img = np.array(to_pil_image(img))
+            elif isinstance(img, PIL.Image.Image):
+                img = np.array(img)
+            img = self.transforms_ablu(image=img, img_index=img_index)["image"]
         return {"images": img, "labels": label, "real_fake": real_fake}
