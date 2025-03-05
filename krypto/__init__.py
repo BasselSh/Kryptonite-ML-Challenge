@@ -1,5 +1,6 @@
 from .datasets import RealFakeTripletDataset
 from .miners import RealFakeQuadrupletMiner
 from .losses import QuadrupletLoss
-
-__all__ = ["RealFakeTripletDataset", "RealFakeQuadrupletMiner", "QuadrupletLoss"]
+from .transforms import FaceCutOut
+    
+__all__ = ["RealFakeTripletDataset", "RealFakeQuadrupletMiner", "QuadrupletLoss", "FaceCutOut"]
