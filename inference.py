@@ -11,6 +11,8 @@ from oml.registry import get_transforms_for_pretrained
 from oml.retrieval import RetrievalResults, AdaptiveThresholding
 import time
 from torch.utils.data import DataLoader
+from torchvision.models import efficientnet_b0
+import torch.nn as nn
 device = "cuda"
 
 model = ViTExtractor.from_pretrained("vits16_dino")
@@ -26,6 +28,10 @@ input_tensor_key = test.input_tensors_key
 loader = DataLoader(dataset=test, batch_size=1, num_workers=1, shuffle=False)
 batch= next(iter(loader))
 img = batch[input_tensor_key].to(device)
+# model = efficientnet_b0(pretrained=False).to(device).eval()
+# print(model)
+# model.classifier = nn.Identity()
+
 # print(img.shape)
 start = time.time()
 embeddings = model(img)
