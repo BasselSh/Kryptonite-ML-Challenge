@@ -18,9 +18,11 @@ git clone https://github.com/OML-Team/open-metric-learning.git
 cd open-metric-learning
 
 conda install pytorch==2.2.1 torchvision==0.17.1 pytorch-cuda=12.1 -c pytorch -c nvidia
+```
 
-Comment torch, torchvision in open-metric-learning/ci/requirements.txt
+2. Comment torch, torchvision in open-metric-learning/ci/requirements.txt
 
+```bash
 pip install -r ci/requirements.txt
 
 pip install -e .
@@ -28,7 +30,7 @@ pip install -e .
 cd ..
 ```
 
-2. In open-metric-learning/oml/inference/abstract.py comment the following for enabeling inference with **cuda**: 
+3. In open-metric-learning/oml/inference/abstract.py comment the following for enabeling inference with **cuda**: 
 
 (lines 30-31)
 
@@ -44,4 +46,10 @@ cd ..
     # outputs, ids = data_synced["outputs"], data_synced["ids"]
 ```
 
-3. Change device to **cuda** in **train.py**, **predict.py**, and **make_submission.py**
+4. Change device to **cuda** in **train.py**, **predict.py**, and **make_submission.py**
+
+5. Download dataset and place it in the data/ directory
+
+Train: https://storage.codenrock.com/companies/codenrock-13/contests/kryptonite-ml-challenge/train.zip
+
+Test: https://storage.codenrock.com/companies/codenrock-13/contests/kryptonite-ml-challenge/test_public.zip
