@@ -2,7 +2,5 @@
 
  0.3713
 
-## ViT with Alexander sumbitted
 
-0.0505
 
