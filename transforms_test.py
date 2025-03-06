@@ -7,7 +7,7 @@ from albumentations.pytorch import ToTensorV2
 
 transforms = A.Compose([
     A.Resize(224, 224),
-    # FaceCutOut(landmarks_df="points_df_with_img_index.csv", p=0.8),
+    FaceCutOut(landmarks_df="points_df_with_img_index.csv", p=0.5),
     # A.ToGray(p=0.2),
     A.HorizontalFlip(p=0.5),
     ToTensorV2()
