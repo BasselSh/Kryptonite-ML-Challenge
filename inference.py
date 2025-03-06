@@ -13,14 +13,43 @@ import time
 from torch.utils.data import DataLoader
 from torchvision.models import efficientnet_b0
 import torch.nn as nn
+from facenet_pytorch import MTCNN, InceptionResnetV1
+import torch.nn as nn
+from facenet_pytorch import fixed_image_standardization
+from torchvision import transforms
+import numpy as np
+
 device = "cuda"
 
-model = ViTExtractor.from_pretrained("vits16_dino")
-state_dict = torch.load("model.pth", map_location="cpu")
-model.load_state_dict(state_dict)
-model = model.to(device).eval()
 
-transform, _ = get_transforms_for_pretrained("vits16_dino")
+def get_facenet():
+    model = InceptionResnetV1(
+    classify=True,
+    pretrained='vggface2',
+    num_classes=10
+    ).to(device)
+    model.dropout = nn.Identity()
+    model.last_linear = nn.Identity()
+    model.last_bn = nn.Identity()
+    model.logits = nn.Identity()
+    return model
+
+def get_transforms_facenet():
+    return transforms.Compose([
+        np.float32,
+        transforms.ToTensor(),
+        fixed_image_standardization
+    ])
+models_dict = {
+    "vits16_dino": {"model": ViTExtractor.from_pretrained("vits16_dino").to(device).train(), "transform": get_transforms_for_pretrained("vits16_dino")[0]},
+    "facenet": {"model": get_facenet(), "transform": get_transforms_facenet()}
+}
+model_name = "facenet"
+model_dict = models_dict[model_name]
+model = model_dict["model"]
+transform = model_dict["transform"]
+model.load_state_dict(torch.load("model.pth"))
+model = model.to(device).eval()
 
 df_test = pd.read_csv("val.csv")
 test = d.ImageQueryGalleryLabeledDataset(df_test, transform=transform)
