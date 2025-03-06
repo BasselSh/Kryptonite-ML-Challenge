@@ -6,12 +6,14 @@ import numpy as np
 
 class FaceCutOut(ImageOnlyTransform):
     def __init__(self, landmarks_df="points_df_with_img_index.csv", p=0.5):
-        self.p = p
         super().__init__(p=1)
-        self.landmarks_df = pd.read_csv(landmarks_df)
+        self.p = p
+        self.landmarks_df = pd.read_csv(landmarks_df).set_index('img_index')
+        self.landmarks_df = self.landmarks_df.astype(int)
 
     def apply(self, image, img_index, **params):
-        if random.random() < self.p:
+        rand = random.random()
+        if rand < self.p:
             return self._cutout(image, img_index)
         return image
 
@@ -26,11 +28,14 @@ class FaceCutOut(ImageOnlyTransform):
         options = ['eyes', 'nose', 'mouth']
         selected_option = random.choice(options)
         if selected_option == 'eyes':
-            return self._cutout_eyes(image, landmarks[1:5])
+            eyes = ['left_eye_x','left_eye_y','right_eye_x','right_eye_y']
+            return self._cutout_eyes(image, landmarks[eyes].to_list())
         elif selected_option == 'nose':
-            return self._cutout_nose(image, landmarks[5:7])
+            nose = ['nose_x','nose_y']
+            return self._cutout_nose(image, landmarks[nose].to_list())
         elif selected_option == 'mouth':
-            return self._cutout_mouth(image, landmarks[7:11])
+            mouth = ['left_mouth_x','left_mouth_y','right_mouth_x','right_mouth_y']
+            return self._cutout_mouth(image, landmarks[mouth].to_list())
 
     def _cutout_eyes(self, image, landmarks):
         bbox = self._get_bbox_from_eyes(landmarks)
@@ -45,13 +50,29 @@ class FaceCutOut(ImageOnlyTransform):
         return self.cutout_bbox(image, bbox)
     
     def _get_bbox_from_eyes(self, landmarks):
-        pass
+        shift_x = 50
+        shift_y = 20
+        shift = np.array([-shift_x, -shift_y, shift_x, shift_y])
+        eyes = np.array(landmarks)
+        eyes += shift
+        return eyes
 
     def _get_bbox_from_nose(self, landmarks):
-        pass
+        shift_x = 30
+        shift_y = 100
+        landmarks = np.concatenate([landmarks, landmarks])
+        shift = np.array([-shift_x, -shift_y, shift_x, shift_y])
+        nose = np.array(landmarks)
+        nose += shift
+        return nose
 
     def _get_bbox_from_mouth(self, landmarks):
-        pass
+        shift_x = 50
+        shift_y = 20
+        shift = np.array([-shift_x, -shift_y, shift_x, shift_y])
+        mouth = np.array(landmarks)
+        mouth += shift
+        return mouth
 
     def cutout_bbox(self, image, bbox):
         '''
@@ -64,4 +85,4 @@ class FaceCutOut(ImageOnlyTransform):
     
     @property
     def target_dependence(self):
-        return {"image": "img_index"}
+        return {"image": ["img_index"]}
