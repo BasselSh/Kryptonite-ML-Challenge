@@ -11,7 +11,7 @@ class QuadrupletLoss(Module):
 
     criterion_name = "quadruplet"  # for better logging
 
-    def __init__(self, margin: Optional[float] = 0.1, reduction: str = "mean"):
+    def __init__(self, margin: Optional[float] = 0.1, neg_real_weight=1, neg_fake_weight=1, reduction: str = "mean"):
         """
 
         Args:
@@ -26,8 +26,8 @@ class QuadrupletLoss(Module):
 
         self.margin = margin
         self.reduction = reduction
-        self.neg_real_weight = 0.5
-        self.neg_fake_weight = 0.5
+        self.neg_real_weight = neg_real_weight
+        self.neg_fake_weight = neg_fake_weight
 
     def forward(self, anchor: Tensor, positive: Tensor, negative_real: Tensor, negative_fake: Tensor) -> Tensor:
 
@@ -39,10 +39,16 @@ class QuadrupletLoss(Module):
 
         if self.margin is None:
             # here is the soft version of TripletLoss without margin
-            loss = torch.log1p(torch.exp(positive_dist - self.neg_real_weight * negative_real_dist - self.neg_fake_weight * negative_fake_dist))
+            neg_real_loss = torch.log1p(torch.exp(positive_dist - self.neg_real_weight * negative_real_dist))
+            neg_fake_loss = torch.log1p(torch.exp(positive_dist - self.neg_fake_weight * negative_fake_dist))
+            total_loss = neg_real_loss + neg_fake_loss
         else:
-            loss = torch.relu(self.margin + positive_dist - self.neg_real_weight * negative_real_dist - self.neg_fake_weight * negative_fake_dist)
+            neg_real_loss = torch.relu(self.margin + positive_dist - self.neg_real_weight * negative_real_dist)
+            neg_fake_loss =  torch.relu(self.margin + positive_dist - self.neg_fake_weight * negative_fake_dist)
+            total_loss = neg_real_loss + neg_fake_loss
 
-        loss = get_reduced(loss, reduction=self.reduction)
-
+        neg_real_loss = get_reduced(neg_real_loss, reduction=self.reduction)
+        neg_fake_loss = get_reduced(neg_fake_loss, reduction=self.reduction)
+        total_loss = get_reduced(total_loss, reduction=self.reduction)
+        loss = dict(neg_real_loss=neg_real_loss, neg_fake_loss=neg_fake_loss, total_loss=total_loss)
         return loss
