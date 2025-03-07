@@ -3,13 +3,14 @@ from albumentations.core.transforms_interface import ImageOnlyTransform
 import random
 import pandas as pd
 import numpy as np
-
+from torchvision.transforms import ToTensor
 class FaceCutOut(ImageOnlyTransform):
-    def __init__(self, landmarks_df="points_df_with_img_index.csv", p=0.5):
+    def __init__(self, landmarks_df="points_df_with_img_index.csv", p=0.5, option="all"):
         super().__init__(p=1)
         self.p = p
         self.landmarks_df = pd.read_csv(landmarks_df).set_index('img_index')
         self.landmarks_df = self.landmarks_df.astype(int)
+        self.option = option
 
     def apply(self, image, img_index, **params):
         rand = random.random()
@@ -25,8 +26,16 @@ class FaceCutOut(ImageOnlyTransform):
                     left_mouth_x,left_mouth_y,right_mouth_x,right_mouth_y]
         '''
         landmarks = self.landmarks_df.loc[img_index] 
-        options = ['eyes', 'nose', 'mouth']
-        selected_option = random.choice(options)
+        if self.option == "all":
+            options = ['eyes', 'nose', 'mouth']
+            selected_option = random.choice(options)
+        elif self.option == "eyes":
+            selected_option = 'eyes'
+        elif self.option == "nose":
+            selected_option = 'nose'
+        elif self.option == "mouth":
+            selected_option = 'mouth'
+        
         if selected_option == 'eyes':
             eyes = ['left_eye_x','left_eye_y','right_eye_x','right_eye_y']
             return self._cutout_eyes(image, landmarks[eyes].to_list())
@@ -86,3 +95,13 @@ class FaceCutOut(ImageOnlyTransform):
     @property
     def target_dependence(self):
         return {"image": ["img_index"]}
+    
+
+
+class ToTensorAlbu(ImageOnlyTransform):
+    def __init__(self):
+        super().__init__(p=1)
+        self.to_tensor = ToTensor()
+
+    def apply(self, image, **params):
+        return self.to_tensor(image)
