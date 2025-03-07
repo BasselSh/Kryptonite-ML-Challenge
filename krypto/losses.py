@@ -11,7 +11,7 @@ class QuadrupletLoss(Module):
 
     criterion_name = "quadruplet"  # for better logging
 
-    def __init__(self, margin: Optional[float] = 0.1, neg_real_weight=1, neg_fake_weight=1, reduction: str = "mean"):
+    def __init__(self, margin: Optional[float] = 1, neg_real_weight=1, neg_fake_weight=1, no_fake_loss=False, reduction: str = "mean", lambda_fake=0.01, **kwargs):
         """
 
         Args:
@@ -28,6 +28,8 @@ class QuadrupletLoss(Module):
         self.reduction = reduction
         self.neg_real_weight = neg_real_weight
         self.neg_fake_weight = neg_fake_weight
+        self.no_fake_loss = no_fake_loss
+        self.lambda_fake = lambda_fake
 
     def forward(self, anchor: Tensor, positive: Tensor, negative_real: Tensor, negative_fake: Tensor) -> Tensor:
 
@@ -40,15 +42,27 @@ class QuadrupletLoss(Module):
         if self.margin is None:
             # here is the soft version of TripletLoss without margin
             neg_real_loss = torch.log1p(torch.exp(positive_dist - self.neg_real_weight * negative_real_dist))
-            neg_fake_loss = torch.log1p(torch.exp(positive_dist - self.neg_fake_weight * negative_fake_dist))
+            if not self.no_fake_loss:
+                neg_fake_loss = torch.log1p(torch.exp(positive_dist - self.neg_fake_weight * negative_fake_dist))
+            else:
+                neg_fake_loss = torch.tensor(0, dtype=torch.float32)
             total_loss = neg_real_loss + neg_fake_loss
         else:
             neg_real_loss = torch.relu(self.margin + positive_dist - self.neg_real_weight * negative_real_dist)
-            neg_fake_loss =  torch.relu(self.margin + positive_dist - self.neg_fake_weight * negative_fake_dist)
+            if not self.no_fake_loss:
+                neg_fake_loss =  self.lambda_fake * torch.relu(self.margin + positive_dist - self.neg_fake_weight * negative_fake_dist)
+            else:
+                neg_fake_loss = torch.tensor(0, dtype=torch.float32)
             total_loss = neg_real_loss + neg_fake_loss
 
         neg_real_loss = get_reduced(neg_real_loss, reduction=self.reduction)
         neg_fake_loss = get_reduced(neg_fake_loss, reduction=self.reduction)
         total_loss = get_reduced(total_loss, reduction=self.reduction)
-        loss = dict(neg_real_loss=neg_real_loss, neg_fake_loss=neg_fake_loss, total_loss=total_loss)
+        positive_dist = get_reduced(positive_dist, reduction="mean")
+        negative_real_dist = get_reduced(negative_real_dist, reduction="mean")
+        negative_fake_dist = get_reduced(negative_fake_dist, reduction="mean")
+        loss = dict(neg_real_loss=neg_real_loss, neg_fake_loss=neg_fake_loss, total_loss=total_loss, dist_pos=positive_dist, dist_neg_real=negative_real_dist, dist_neg_fake=negative_fake_dist)
         return loss
+
+
+
