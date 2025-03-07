@@ -4,4 +4,5 @@ from .losses import QuadrupletLoss
 from .transforms import FaceCutOut, ToTensorAlbu
 from .sampler import TrainValSampler
 from .trainer import Trainer
-__all__ = ["RealFakeTripletDataset", "RealFakeQuadrupletMiner", "QuadrupletLoss", "FaceCutOut", "ToTensorAlbu", "TrainValSampler", "Trainer"]
+from .modules import CosineDistanceHead
+__all__ = ["CosineDistanceHead","RealFakeTripletDataset", "RealFakeQuadrupletMiner", "QuadrupletLoss", "FaceCutOut", "ToTensorAlbu", "TrainValSampler", "Trainer"]
