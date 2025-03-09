@@ -93,27 +93,17 @@ pip install -e .
 cd ..
 ```
 
-3. In open-metric-learning/oml/inference/abstract.py comment the following for enabeling inference with **cuda**: 
-
-(lines 30-31)
-
-```python
-    # if is_ddp():
-    #     loader = patch_dataloader_to_ddp(loader)
-```
-(lines 50-52)
-
-```python
-    # data_to_sync = {"outputs": outputs, "ids": ids}
-    # data_synced = sync_dicts_ddp(data_to_sync, world_size=get_world_size_safe())
-    # outputs, ids = data_synced["outputs"], data_synced["ids"]
-```
-
 5. Download dataset and place it in the data/ directory
 
 Train: https://storage.codenrock.com/companies/codenrock-13/contests/kryptonite-ml-challenge/train.zip
 
 Test: https://storage.codenrock.com/companies/codenrock-13/contests/kryptonite-ml-challenge/test_public.zip
+
+Numbers of files is written with zero padding, which is not suitable. Remove it by running:
+
+```bash
+python preprocess_meta.py
+```
 
 6. download facenet pytorch
 
@@ -123,10 +113,11 @@ git clone https://github.com/timesler/facenet-pytorch.git facenet_pytorch
 
 
 
-python preprocess_meta.py
+Install clearml for logging
 
+```bash
 pip install clearml==1.17.1
-
+```
 
 7. Train
 
