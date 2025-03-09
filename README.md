@@ -1,5 +1,16 @@
 # Kryptonite-ML-Challenge
 
+The goal of this project is to develop a model for face verification that is robust to deepfake attacks.
+The model will take as an input a pair of images and output whether they are the same person or not.
+The variations of the pairs of images are:
+- Two images of the same person
+- Two images of different people
+- One image of a person and one image of a deepfake of the same person
+- One image of a person and one image of a deepfake of a different person
+
+In the first case, the model should output 1, and in the other cases it should output 0.
+
+To estimate the performance of the model, the main metric to use is the **Equal Error Rate (EER)**.
 
 ## Loss selection
 We start by verifying the facenet model, which is pretrained on face recognition, and observe its performance on our dataset.
