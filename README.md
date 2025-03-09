@@ -67,7 +67,12 @@ parts of the face more than others.
 
 We conclude that cutout is not an effective method for this task.
 
+# Final model
+**Resnet18** was selected with the proposed loss function and trained on 25 epochs until convergence.
 
+Score on public test set: **0.0632**
+
+Weights: https://drive.google.com/file/d/1X2d7EwDhfdLDHZ2Lug70eOGZJg75M8Uj/view?usp=sharing
 
 # Install
 
