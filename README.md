@@ -25,7 +25,14 @@ With the proposed loss, we can see the increased distance of fake images.
 <div align="center">
 <img src=assets/loss_selection/quad_loss_distances_facenet.png alt="Proposed Loss Distances" width="500">
 </div>
-<!-- ![Triplet Loss Distances](assets/loss_selection/quad_loss_distances_facenet.png) -->
+
+This can be seen in the embedding space, where after training the model learns to distinguish between real and fake images.
+<div style="display: flex; justify-content: center;">
+
+<img src="assets/embeddings/facenet_pca_real_fake_0.png" alt="Before training" width="400" style="margin-right: 10px;" />
+<img src="assets/embeddings/facenet_pca_real_fake_8.png" alt="After training" width="400" />
+
+</div>
 
 However, while pushing away fake images, the distance to negative images decreases, which is not desirable.
 To measure the effect of the distances, two eer-based metrics were proposed.
@@ -35,6 +42,16 @@ One of them calculates eer for positive pairs and negative-fake pairs, while the
 
 ![Model selection eer real](assets/model_selection/neg_real_models.png)
 ![Model selection eer fake](assets/model_selection/neg_fake_models.png)
+
+
+# Investigating loss function
+
+| Lambda         | eer_real | eer_fake |
+|----------------|----------|----------|
+| 0.01           | 0.149    | 0.067    |
+| 0.1            | 0.145    | 0.016    |
+| 1              | 0.148    | 0.007    |
+| 1 + cos head   | 0.157    | 0.005    |
 
 
 # Data augmentation
