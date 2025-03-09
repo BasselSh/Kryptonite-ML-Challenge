@@ -1,6 +1,6 @@
 
-from .preprocessing import get_facenet_transforms, get_fastface_transforms, get_default_transforms
-from .architectures import FastfaceBackbone, get_resnet18, get_facenet, get_efficientnet_b0, get_mobilenet_v3_large, get_resnet152, get_resnet101
+from .preprocessing import get_facenet_transforms, get_default_transforms
+from .architectures import get_resnet18, get_facenet, get_efficientnet_b0, get_mobilenet_v3_large, get_resnet152, get_resnet101
 from oml.losses import TripletLoss
 from oml.models import ViTExtractor
 from oml.registry import get_transforms_for_pretrained
@@ -38,11 +38,6 @@ models_dict = {
                  "optim_args": {"lr": 0.0001, "momentum": 0.9},
                  "optim_fn": optim.SGD,
                  "embed_size": 2048},
-    "fastface": {"model": FastfaceBackbone,
-                 "transform": get_fastface_transforms(),
-                 "optim_args": {"lr": 0.0001, "momentum": 0.9},
-                 "optim_fn": optim.SGD,
-                 "embed_size": 128},
     "efficientnet_b0": {"model": get_efficientnet_b0,
                         "transform": get_default_transforms(),
                         "optim_args": {"lr": 0.0001, "momentum": 0.9},
