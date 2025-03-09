@@ -14,12 +14,12 @@ To understand the performace, the distances between anchors and their positive, 
 The goal is to reduce the distance between anchors and their positive pairs, and increase the distance between anchors and their negative pairs, while pushing away fake images. For that the following loss was proposed:
 loss = triplet(anchor, positive, negative) + triplet(anchor, positive, fake)
 This loss function showed significant increase in the results with only 2 epochs of training.
-<div align="center">
+
 | Method                     | eer_real | eer_fake |
 |----------------------------|----------|----------|
 | triplet loss               | 0.1041   | 0.425    |
 | triplet loss real + fake   | 0.1374   | 0.025    |
-</div>
+
 
 With the proposed loss, we can see the increased distance of fake images.
 <div align="center">
