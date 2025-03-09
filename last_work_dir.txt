@@ -1,0 +1,1 @@
+output/resnet18_quadruplet_cutout_0.5_mouth_
