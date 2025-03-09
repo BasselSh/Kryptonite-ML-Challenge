@@ -4,7 +4,9 @@ import random
 import pandas as pd
 import numpy as np
 from torchvision.transforms import ToTensor
+
 class FaceCutOut(ImageOnlyTransform):
+    
     def __init__(self, landmarks_df="points_df_with_img_index.csv", p=0.5, option="all"):
         super().__init__(p=1)
         self.p = p
@@ -27,7 +29,7 @@ class FaceCutOut(ImageOnlyTransform):
         '''
         landmarks = self.landmarks_df.loc[img_index] 
         if self.option == "all":
-            options = ['eyes', 'nose', 'mouth']
+            options = ['nose', 'mouth', 'eyes']
             selected_option = random.choice(options)
         elif self.option == "eyes":
             selected_option = 'eyes'
@@ -67,8 +69,8 @@ class FaceCutOut(ImageOnlyTransform):
         return eyes
 
     def _get_bbox_from_nose(self, landmarks):
-        shift_x = 30
-        shift_y = 100
+        shift_x = 10
+        shift_y = 60
         landmarks = np.concatenate([landmarks, landmarks])
         shift = np.array([-shift_x, -shift_y, shift_x, shift_y])
         nose = np.array(landmarks)

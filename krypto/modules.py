@@ -3,7 +3,7 @@ from typing import Optional, Dict
 from torch import Tensor
 import torch
 
-class CosineDistanceHead(nn.Module):
+class CosDistanceHead(nn.Module):
     """Classification head for `Baseline++ https://arxiv.org/abs/2003.04390`_.
 
     Args:

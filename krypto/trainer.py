@@ -1,5 +1,3 @@
-
-import random
 import torch
 import numpy as np
 import pandas as pd
@@ -8,14 +6,17 @@ import shutil
 import os
 from torch.utils.tensorboard import SummaryWriter
 from sklearn.decomposition import PCA
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from eer import compute_eer
+from krypto.metrics import compute_eer
 import torch.nn.functional as F
-import albumentations as A
-import clearml
 from torchvision.utils import make_grid
-from krypto import CosineDistanceHead
-device = 'cuda'
+from .modules import CosDistanceHead
+from .paths_cfg import DATA_DIR
+from krypto.miners import OnlyRealMiner
+from krypto.losses import OnlyRealLoss
+
 OUTPUT_DIR = "output"
 
 class Trainer:
@@ -26,19 +27,17 @@ class Trainer:
                  optimizer,
                  scheduler,
                  epochs,
-                 val_batch_size,
                  train_dataloader,
                  val_dataloader,
                  logger,
                  with_pca=False,
-                 stop_fake_loss=False,
                  embed_size=None,
-                 with_cos_head=False):
+                 with_cos_head=False,
+                 device='cuda'):
         self.description = description
         self.work_dir = f"{OUTPUT_DIR}/{description}"
         self.logger = logger
         self.with_pca = with_pca
-        self.stop_fake_loss = stop_fake_loss
         self.model = model.to(device)
         self.criterion = criterion
         self.miner = miner
@@ -46,9 +45,17 @@ class Trainer:
         self.scheduler = scheduler
         self.writer = SummaryWriter(log_dir=f"{self.work_dir}/runs")
         self.epochs = epochs
-        self.val_batch_size = val_batch_size
+        self.device = device
         self.train_dataloader = train_dataloader
         self.val_dataloader = val_dataloader
+        self._init_defaults()
+        if with_cos_head:
+            n_classes = self.train_dataloader.dataset.get_n_identities()
+            self.cos_head = CosDistanceHead(num_classes=n_classes, in_channels=embed_size).to(self.device)
+        else:
+            self.cos_head = None
+    
+    def _init_defaults(self):
         self.best_eer = 1
         self.best_model_path = f"{self.work_dir}/best_model.pth"
         self.best_model_epoch = 0
@@ -57,7 +64,7 @@ class Trainer:
         self.pca_id = 0
         self.current_epoch = 1
         self.eer_plot_dir = os.path.join(self.work_dir , "eer_plots")
-        self.patience = 5
+        self.patience = 10
         self.patience_counter = 0
         self.aug_batch_count = 1
         self.batch_dir = os.path.join(self.work_dir, "batch_images")
@@ -67,12 +74,6 @@ class Trainer:
         os.makedirs(self.batch_dir, exist_ok=True)
         os.makedirs(f"{self.work_dir}/pca_plots", exist_ok=True)
         os.makedirs(self.eer_plot_dir, exist_ok=True)
-        if with_cos_head:
-            n_classes = self.train_dataloader.dataset.get_n_identities()
-            self.cos_head = CosineDistanceHead(num_classes=n_classes, in_channels=embed_size)
-        else:
-            self.cos_head = None
-    
 
     def compute_embeddings_2d_plot(self, embeddings_tensor, labels_tensor, real_fake_tensor):
         embeddings = embeddings_tensor.detach().cpu().numpy()
@@ -98,6 +99,37 @@ class Trainer:
         plt.clf()
         self.pca_id += 1
     
+    def compute_embeddings_2d_plot_for_first_batch(self):
+        embeddings = self.model(self.first_batch['images'].to(self.device))
+        embeddings = embeddings.detach().cpu().numpy()
+        labels = self.first_batch['labels'].detach().cpu().numpy()
+        real_fake = self.first_batch['real_fake'].detach().cpu().numpy()
+        if self.pca_id == 0:
+            embeddings_2d = self.pca.fit_transform(embeddings)
+        else:
+            embeddings_2d = self.pca.transform(embeddings)
+        embeddings_2d_normalized = (embeddings_2d - embeddings_2d.min()) / (embeddings_2d.max() - embeddings_2d.min())
+        plt.clf()
+        for i, label in enumerate(labels):
+            plt.text(embeddings_2d_normalized[i, 0], embeddings_2d_normalized[i, 1], f"{label}_{real_fake[i]}")
+        plt.title(f"PCA plot real vs fake {self.pca_id}")
+        plt.savefig(f"{self.work_dir}/pca_plots/pca_plot_fake_{self.pca_id}.png")
+        only_real_embeddings = embeddings[real_fake == 0]
+        if self.pca_id == 0:
+            only_real_embeddings_2d = self.pca.fit_transform(only_real_embeddings)
+        else:
+            only_real_embeddings_2d = self.pca.transform(only_real_embeddings)
+        only_real_embeddings_2d_normalized = (only_real_embeddings_2d - only_real_embeddings_2d.min()) / (only_real_embeddings_2d.max() - only_real_embeddings_2d.min())
+        labels_only_real = labels[real_fake == 0]
+
+        plt.clf()
+        plt.title(f"PCA plot real {self.pca_id}")
+        for i, label in enumerate(labels_only_real):
+            plt.text(only_real_embeddings_2d_normalized[i, 0], only_real_embeddings_2d_normalized[i, 1], f"{label}")
+        plt.savefig(f"{self.work_dir}/pca_plots/pca_plot_real_{self.pca_id}.png")
+        plt.clf()
+        self.pca_id += 1
+    
     def train_loop(self):
         pbar = tqdm(self.train_dataloader)
         pbar.set_description(f"epoch: {self.current_epoch}/{self.epochs}")
@@ -105,17 +137,18 @@ class Trainer:
         self.model.train()# prep model for training
         n_batches = 0
         for batch in pbar:
-            images = batch["images"].to(device)
-            labels = batch["labels"]
+            images = batch["images"].to(self.device)
+            labels = batch["labels"].to(self.device)
             real_fake = batch["real_fake"]
+            real_filter = real_fake == 0
             embeddings = self.model(images)
-            if self.cos_head is not None:
-                loss_cos = self.cos_head(embeddings, labels)
-                loss_cos.backward()
-                self.writer.add_scalar('Loss/cos_head', loss_cos.item(), self.iter)
             if self.with_pca:
-                if self.iter % 500 == 0 or self.iter == 1:
-                    self.compute_embeddings_2d_plot(embeddings, labels, real_fake)
+                self.compute_embeddings_2d_plot_for_first_batch()
+                # if self.iter % 500 == 0 or self.iter == 1:
+                #     self.compute_embeddings_2d_plot(embeddings, labels, real_fake)
+            if self.cos_head is not None:
+                loss_cos = self.cos_head(embeddings[real_filter], labels[real_filter])
+                self.writer.add_scalar('Loss/cos_head', loss_cos.item(), self.iter)
 
             anc, pos, neg_real, neg_fake = self.miner(embeddings, labels, real_fake)
             loss_dict = self.criterion(anc, pos, neg_real, neg_fake)
@@ -125,6 +158,8 @@ class Trainer:
                     self.writer.add_scalar(f'Distance/{k}', v.item(), self.iter)
                 else:
                     self.writer.add_scalar(f'Loss/{k}', v.item(), self.iter)
+            if self.cos_head is not None:
+                total_loss += loss_cos
             total_loss.backward()
             self.optimizer.step()
             self.optimizer.zero_grad()
@@ -133,6 +168,36 @@ class Trainer:
             total_loss += total_loss.item()
             self.iter += 1
             n_batches += 1
+            
+        return total_loss/n_batches
+    
+    def train_loop_only_real(self):
+        pbar = tqdm(self.train_dataloader)
+        pbar.set_description(f"epoch: {self.current_epoch}/{self.epochs}")
+        total_loss = 0
+        self.model.train()# prep model for training
+        n_batches = 0
+        for batch in pbar:
+            images = batch["images"].to(self.device)
+            labels = batch["labels"].to(self.device)
+            real_fake = batch["real_fake"]
+            embeddings = self.model(images)
+            anchor_pos, pos, anchor_neg, neg = self.miner_only_real(embeddings, labels, real_fake)
+            loss_pos = self.criterion_dual(anchor_pos, pos)
+            loss_neg = self.criterion_dual(anchor_neg, neg)
+            total_loss = loss_pos - loss_neg
+            self.writer.add_scalar('Loss/pos', loss_pos.item(), self.iter)
+            self.writer.add_scalar('Loss/neg', loss_neg.item(), self.iter)
+            self.writer.add_scalar('Loss/total', total_loss.item(), self.iter)
+            total_loss.backward()
+            self.optimizer.step()
+            self.optimizer.zero_grad()
+            if self.scheduler:
+                self.scheduler.step()
+            total_loss += total_loss.item()
+            self.iter += 1
+            n_batches += 1
+            
         return total_loss/n_batches
     
     def val_loop(self):
@@ -145,7 +210,7 @@ class Trainer:
         all_neg_fake = []
         with torch.no_grad():
             for batch in pbar:
-                images = batch["images"].to(device)
+                images = batch["images"].to(self.device)
                 labels = batch["labels"]
                 real_fake = batch["real_fake"]
                 
@@ -176,22 +241,29 @@ class Trainer:
         eer_neg_fake = compute_eer(pos_pos_fake_labels, pos_pos_fake_scores, name="neg_fake", save_dir=self.eer_plot_dir, plot_id=self.current_epoch, logger=self.logger)
         return eer_neg_real, eer_neg_fake
 
+    def plot_first_batch(self, epoch):
+        train_dataloader_iter = iter(self.train_dataloader) # Create a new iterator
+        first_batch = next(train_dataloader_iter)
+        self.first_batch = first_batch
+        batch_images = first_batch["images"] 
+        mean=torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1) 
+        std=torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1) 
+        batch_images = batch_images * std + mean
+        batch_images = torch.clip(batch_images, min=0, max=1)
+        plt.clf()
+        plt.title(f"augmented images epoch {epoch}")
+        plt.axis("off")
+        grid = make_grid(batch_images, nrow=6)
+        plt.imshow(grid.permute(1, 2, 0))
+        plt.savefig(f"{self.batch_dir}/batch_{epoch}_{self.aug_batch_count}.jpg")
+        plt.close()
+
     def train_val(self):
         for epoch in range(self.epochs):
-            if self.train_dataloader.dataset.transforms_albu:
-                for i in range(self.aug_batch_count):
-                    batch_images = next(iter(self.train_dataloader))["images"]
-                    plt.title("augmented images")
-                    plt.axis("off")
-                    grid = make_grid(batch_images, nrow=6)
-                    plt.imshow(grid.permute(1, 2, 0))
-                    plt.savefig(f"{self.batch_dir}/batch_{self.aug_batch_count}.jpg")
-                    plt.clf()
-                    self.aug_batch_count += 1
+            self.plot_first_batch(epoch)
             self.current_epoch = epoch + 1
-            if self.stop_fake_loss and self.current_epoch == 2:
-                self.criterion.no_fake_loss = True
-            loss = self.train_loop()
+            # loss = self.train_loop()
+            loss = self.train_loop_only_real()
             self.writer.add_scalar('epoch_loss', loss, self.current_epoch)
             eer_neg_real, eer_neg_fake = self.val_loop()
             self.writer.add_scalar('EER/neg_real', eer_neg_real, self.current_epoch)

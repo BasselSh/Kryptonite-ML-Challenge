@@ -1,14 +1,9 @@
 import os
 import json
-import torch
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision.transforms import ToTensor
-import pandas as pd
 import numpy as np
-import PIL
-from torchvision.transforms.functional import to_pil_image
-import random
 
 class RealFakeTripletDataset(Dataset):
     def __init__(self, root_dir, meta_path, transform=None, transforms_albu=None):
@@ -31,7 +26,7 @@ class RealFakeTripletDataset(Dataset):
         self.real_fake_labels = []
         all_identities = os.listdir(self.root_dir)
         self._num_labels = len(all_identities)
-        random.shuffle(all_identities)
+        self.all_indecies = []
         # Organize images based on real/fake labels
         for identity in all_identities:  
             person_dir = os.path.join(self.root_dir, identity)
@@ -41,6 +36,7 @@ class RealFakeTripletDataset(Dataset):
                 img_path = os.path.join(person_dir, img)
                 img_name = os.path.basename(img_path)
                 img_index = os.path.join(str(int(identity)), img_name)
+                self.all_indecies.append(img_index)
                 self.image_paths.append(img_path)
                 self.labels.append(int(identity))  # Identity label
                 self.real_fake_labels.append(self.meta[img_index])  # "real" or "fake"
@@ -54,28 +50,16 @@ class RealFakeTripletDataset(Dataset):
     def get_n_identities(self):
         return self._num_labels
     
-    # def _meta_to_table(self, meta):
-    #     meta_dict = json.load(meta)
-    #     index_rows = meta_dict.keys()
-    #     real_fake_rows = meta_dict.values()
-    #     combined_rows_np = np.array(list(zip(index_rows, real_fake_rows)))
-    #     df = pd.DataFrame(combined_rows_np, columns=['index', 'real_fake'])
-    #     print(df)
-    #     return df
-
     def __getitem__(self, idx):
         img_path = self.image_paths[idx]
         label = self.labels[idx]
         real_fake = self.real_fake_labels[idx]
-
+        img_index = self.all_indecies[idx]
         img = Image.open(img_path).convert("RGB")
         if self.transforms_albu:
             img = np.array(img)
-            img_index = os.path.join(str(label), os.path.basename(img_path))
             img = self.transforms_albu(image=img, img_index=img_index)["image"]
             img = Image.fromarray(img)
         if self.transform:
             img = self.transform(img)
-        
-
-        return {"images": img, "labels": label, "real_fake": real_fake}
+        return {"images": img, "labels": label, "real_fake": real_fake, "img_index": img_index}
