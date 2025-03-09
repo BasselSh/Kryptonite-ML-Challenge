@@ -185,3 +185,17 @@ For training the model for the competition:
 python make_submission.py resnet18
 ```
 the submission will be saved in the same directory as the model.
+
+7. To reproduce experiments, the command lines are stored in bash scripts in the folder: examples
+
+For model selection experiments
+
+```bash
+bash examples/model_selection.bash
+```
+
+For data augmentation experiments with cutout:
+
+```bash
+bash examples/data_augmentation.bash
+```
