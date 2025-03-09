@@ -13,9 +13,6 @@ from krypto.metrics import compute_eer
 import torch.nn.functional as F
 from torchvision.utils import make_grid
 from .modules import CosDistanceHead
-from .paths_cfg import DATA_DIR
-from krypto.miners import OnlyRealMiner
-from krypto.losses import OnlyRealLoss
 
 OUTPUT_DIR = "output"
 
@@ -171,35 +168,6 @@ class Trainer:
             
         return total_loss/n_batches
     
-    def train_loop_only_real(self):
-        pbar = tqdm(self.train_dataloader)
-        pbar.set_description(f"epoch: {self.current_epoch}/{self.epochs}")
-        total_loss = 0
-        self.model.train()# prep model for training
-        n_batches = 0
-        for batch in pbar:
-            images = batch["images"].to(self.device)
-            labels = batch["labels"].to(self.device)
-            real_fake = batch["real_fake"]
-            embeddings = self.model(images)
-            anchor_pos, pos, anchor_neg, neg = self.miner_only_real(embeddings, labels, real_fake)
-            loss_pos = self.criterion_dual(anchor_pos, pos)
-            loss_neg = self.criterion_dual(anchor_neg, neg)
-            total_loss = loss_pos - loss_neg
-            self.writer.add_scalar('Loss/pos', loss_pos.item(), self.iter)
-            self.writer.add_scalar('Loss/neg', loss_neg.item(), self.iter)
-            self.writer.add_scalar('Loss/total', total_loss.item(), self.iter)
-            total_loss.backward()
-            self.optimizer.step()
-            self.optimizer.zero_grad()
-            if self.scheduler:
-                self.scheduler.step()
-            total_loss += total_loss.item()
-            self.iter += 1
-            n_batches += 1
-            
-        return total_loss/n_batches
-    
     def val_loop(self):
         pbar = tqdm(self.val_dataloader)
         pbar.set_description(f"val_epoch: {self.current_epoch}/{self.epochs}")
@@ -262,8 +230,7 @@ class Trainer:
         for epoch in range(self.epochs):
             self.plot_first_batch(epoch)
             self.current_epoch = epoch + 1
-            # loss = self.train_loop()
-            loss = self.train_loop_only_real()
+            loss = self.train_loop()
             self.writer.add_scalar('epoch_loss', loss, self.current_epoch)
             eer_neg_real, eer_neg_fake = self.val_loop()
             self.writer.add_scalar('EER/neg_real', eer_neg_real, self.current_epoch)
