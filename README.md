@@ -33,7 +33,10 @@ With the proposed loss, we can see the increased distance of fake images.
 <img src=assets/loss_selection/quad_loss_distances_facenet.png alt="Proposed Loss Distances" width="500">
 
 
-This can be seen in the embedding space, where after training the model learns to distinguish between real and fake images.
+This can be seen in the embedding space, where after training the model learns to distinguish between real and fake images. Embeddings are obtained by PCA.
+
+Every image in the batch is represented in the form {personID}_{real/fake} where 1 means fake and 0 means real. It can be seen that before training the representations of real and fake images are mixed. After training the model could successfully separate real and fake images.
+
 <div style="display: flex; justify-content: center;">
 
 <img src="assets/embeddings/facenet_pca_real_fake_0.png" alt="Before training" width="400" style="margin-right: 10px;" />
@@ -41,6 +44,7 @@ This can be seen in the embedding space, where after training the model learns t
 
 </div>
 
+<br>
 However, while pushing away fake images, the distance to negative images decreases, which makes it necessary to investigate some methods to deal with the trade-off between errors on real and fake images.
 
 ## Model selection
@@ -65,7 +69,11 @@ between pairs of real people (positive and negative pairs). However, this did no
 
 ## Data augmentation
 The cutout data augmentation technique was used as a potential method to guide the model to focus on specific
-parts of the face more than others.
+parts of the face more than others. The options to cut are **mouth**, **nose**, **eyes**
+
+<img src=assets/augmentation/batch.png alt="Image batch with cutout" width="500">
+
+
 (6 epochs)
 | Cutout Part | eer_real | eer_fake |
 |-------------|--------  | -------- |

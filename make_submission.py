@@ -4,17 +4,9 @@ import torch
 import pandas as pd
 from torch.nn import functional as F
 from oml import datasets as d
-from oml.inference import inference
-
-from oml.models import ViTExtractor
-from oml.registry import get_transforms_for_pretrained
-import torch.nn as nn
-from facenet_pytorch import MTCNN, InceptionResnetV1
-import torch.nn as nn
-from facenet_pytorch import fixed_image_standardization
-from torchvision import transforms
-import numpy as np
+from krypto.inference import inference
 import argparse
+from krypto.parameters import models_dict
 
 device = "cuda"
 OUTPUT_DIR = "output"
@@ -29,33 +21,6 @@ def create_sample_sub(pair_ids: List[str], sim_scores: List[float]):
     id_column = "pair_id"
     return pd.DataFrame({id_column: pair_ids, sub_sim_column: sim_scores})
 
-
-
-def get_facenet():
-    model = InceptionResnetV1(
-    classify=True,
-    pretrained='vggface2',
-    num_classes=10
-    ).to(device)
-    model.dropout = nn.Identity()
-    model.last_linear = nn.Identity()
-    model.last_bn = nn.Identity()
-    model.logits = nn.Identity()
-    return model
-
-def get_transforms_facenet():
-    return transforms.Compose([
-        np.float32,
-        transforms.ToTensor(),
-        fixed_image_standardization
-    ])
-models_dict = {
-    "vits16_dino": {"model": ViTExtractor.from_pretrained("vits16_dino").to(device).train(), "transform": get_transforms_for_pretrained("vits16_dino")[0]},
-    "facenet": {"model": get_facenet(), "transform": get_transforms_facenet()}
-}
-
-
-
 if __name__ == "__main__":
     args = parse_args()
     model_name = args.model
@@ -65,7 +30,7 @@ if __name__ == "__main__":
     submission_path = os.path.join(last_work_dir_path, "submission.csv")
 
     model_dict = models_dict[model_name]
-    model = model_dict["model"]
+    model = model_dict["model"]()
     transform = model_dict["transform"]
     model.load_state_dict(torch.load(model_path))
     model = model.to(device).eval()
