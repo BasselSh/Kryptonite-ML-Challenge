@@ -1,6 +1,0 @@
-default quad loss: margin 1, neg_real_weight 1, neg_fake_weight 1
-
-With + without fake loss:
-                          eer_real  eer_fake
-triplet loss                0.1041     0.425
-triplet loss real + fake    0.1374     0.025
