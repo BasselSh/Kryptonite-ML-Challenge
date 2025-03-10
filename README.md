@@ -144,7 +144,7 @@ python preprocess_meta.py
 git clone https://github.com/timesler/facenet-pytorch.git facenet_pytorch
 ```
 
-4. Install clearml for logging, and add your api key to the clearml.yaml file in the root directory.
+4. Install clearml for logging, and add your api key to the clearml.conf file in the root directory.
 
 ```bash
 pip install clearml==1.17.1
