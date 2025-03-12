@@ -138,9 +138,8 @@ cd ..
 
 2. Download dataset and place it in the data/ directory
 
-Train: [download](https://storage.codenrock.com/companies/codenrock-13/contests/kryptonite-ml-challenge/train.zip) 
+Dataset: [download](https://storage.codenrock.com/companies/codenrock-13/contests/kryptonite-ml-challenge/train.zip) 
 
-Test: [download](https://storage.codenrock.com/companies/codenrock-13/contests/kryptonite-ml-challenge/test_public.zip)
 
 Numbers of files is written with zero padding, which is not suitable. Remove it by running:
 
