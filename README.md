@@ -144,7 +144,7 @@ python preprocess_meta.py
 git clone https://github.com/timesler/facenet-pytorch.git facenet_pytorch
 ```
 
-4. Install clearml for logging, and add your api key to the clearml.yaml file in the root directory.
+4. Install clearml for logging, and add your api key to the clearml.conf file in the root directory.
 
 ```bash
 pip install clearml==1.17.1
@@ -175,7 +175,7 @@ The following arguments can be used with the `train.py` script:
 | `<no_fake_loss>`  | Whether to disable fake loss calculation. Default is False. |
 | `<cutout_option>` | Options for cutout augmentation. It will be applied only if cutout is not 0. The available options are **all**, **mouth**, **nose**, **eyes**.                  |
 | `<with_cos_head>` | Whether to use cosine head. Default is False.        |
-| `<lambda_fake>`   | Weight for the fake loss in the overall loss. Default is 0.   |
+| `<lambda_fake>`   | Weight for the fake loss in the overall loss. Default is 1.   |
 
 For training the model for the competition:
 
