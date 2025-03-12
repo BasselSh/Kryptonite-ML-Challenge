@@ -8,8 +8,8 @@ The variations of the pairs of images are:
 
 <div style="display: flex; justify-content: center;">
 
-<img src=assets/5.jpg alt="Real" width="300">
-<img src=assets/8.jpg alt="Fake" width="300">
+<img src=assets/5.jpg alt="Real" width="250">
+<img src=assets/8.jpg alt="Fake" width="250">
 
 </div>
 
