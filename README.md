@@ -1,8 +1,18 @@
 # Kryptonite-ML-Challenge
 
+
+
 The goal of this project is to develop a model for face verification that is robust to deepfake attacks.
 The model will take as an input a pair of images and output whether they are the same person or not.
 The variations of the pairs of images are:
+
+<div style="display: flex; justify-content: center;">
+
+<img src=assets/5.jpg alt="Real" width="300">
+<img src=assets/8.jpg alt="Fake" width="300">
+
+</div>
+
 - Two images of the same person
 - Two images of different people
 - One image of a person and one image of a deepfake of the same person
