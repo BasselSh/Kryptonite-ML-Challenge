@@ -161,6 +161,7 @@ pip install clearml==1.17.1
 
 5. Train
 
+For training the model for the competition:
 
 ```bash
 python train.py resnet18
@@ -186,7 +187,6 @@ The following arguments can be used with the `train.py` script:
 | `<with_cos_head>` | Whether to use cosine head. Default is False.        |
 | `<lambda_fake>`   | Weight for the fake loss in the overall loss. Default is 1.   |
 
-For training the model for the competition:
 
 6. Make submission
 
