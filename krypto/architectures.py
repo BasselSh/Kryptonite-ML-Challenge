@@ -7,8 +7,6 @@ from torchvision.models import efficientnet_b0, EfficientNet_B0_Weights, mobilen
 class FastfaceBackbone(nn.Module):
     def __init__(self):
         super().__init__()
-        # face_detector = pl.LightningModule.load_from_checkpoint("models/lffd_original.ckpt", map_location="cpu")
-        # self.backbone = face_detector.arch.backbone
         self.backbone = ff.FaceDetector.from_pretrained("lffd_original").arch.backbone
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
 

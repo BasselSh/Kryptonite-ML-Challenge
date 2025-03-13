@@ -25,39 +25,6 @@ def smart_sample(array, k):
     return sampled
 
 class TrainValSampler:
-    """
-    This sampler takes ``n_instances`` for each of the ``n_labels`` to form the batches.
-    Thus, the batch size is ``n_instances x n_labels``. This type of sampling can be found
-    in the classical Person Re-Id paper -
-    `In Defense of the Triplet Loss for Person Re-Identification`_.
-
-    .. _In Defense of the Triplet Loss for Person Re-Identification:
-        https://arxiv.org/abs/1703.07737
-
-    The strategy for the dataset with ``L`` unique labels is the following:
-
-    - Select ``n_labels`` of ``L`` labels for the 1st batch
-
-    - Select ``n_instances`` for each label for the 1st batch
-
-    - Select ``n_labels`` of ``L - n_labels`` remaining labels for 2nd batch
-
-    - Select ``n_instances`` instances for each label for the 2nd batch
-
-    - ...
-
-    - The epoch ends after ``L // n_labels``.
-
-    Thus, in each epoch, all the labels will be selected once, but this
-    does not mean that all the instances will be picked.
-
-    Behavior in corner cases:
-
-    - If some label does not contain ``n_instances``, a choice will be made with repetition.
-
-    - If ``L % n_labels != 0`` then we drop the last batch.
-
-    """
 
     def __init__(self, labels: Union[List[int], np.ndarray], n_labels: int, n_instances: int, train: bool, train_ratio: float):
         """

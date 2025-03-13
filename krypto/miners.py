@@ -23,13 +23,7 @@ class RealFakeQuadrupletMiner:
                 neg_real_indices = [j for j in range(batch_size) if labels[j] != labels[i] and real_fake_labels[j] == 0]
                 # Find a fake from the same person
                 neg_fake_indices = [j for j in range(batch_size) if labels[j] == labels[i] and real_fake_labels[j] == 1]
-                label_i = labels[i].item()
                 if not (pos_indices and neg_fake_indices and neg_real_indices):
-                    # print("Could not find quadruplet for label", label_i)
-                    # if not neg_fake_indices:
-                    #     print("No fake found for label", label_i)
-                    # if not neg_real_indices:
-                    #     print("No negative real found for label", label_i)
                     continue
                 ids_anchor.append(i)
                 ids_pos.append(random.choice(pos_indices))
@@ -47,9 +41,6 @@ class OnlyRealMiner:
         pass
 
     def __call__(self, embeddings, labels, real_fake_labels):
-        """
-        Custom quadruplet miner that ensures quadruplets follow a Real1-Real1-Real2-Fake1 structure.
-        """
         real_embeddings = embeddings[real_fake_labels == 0]
         real_labels = labels[real_fake_labels == 0]
         labels_range = np.arange(real_labels.shape[0])

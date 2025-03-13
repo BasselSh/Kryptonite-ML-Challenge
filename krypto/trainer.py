@@ -2,7 +2,6 @@ import torch
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-import shutil
 import os
 from torch.utils.tensorboard import SummaryWriter
 from sklearn.decomposition import PCA
@@ -17,6 +16,23 @@ from .modules import CosDistanceHead
 OUTPUT_DIR = "output"
 
 class Trainer:
+    """
+    Args:
+        description (str): Description of the training session, which is used for naming the output directory.
+        model (torch.nn.Module): The model to be trained.
+        criterion (callable): Loss function used during training.
+        miner (callable): Function to mine triplets or pairs for training.
+        optimizer (torch.optim.Optimizer): Optimizer for updating model parameters.
+        scheduler (torch.optim.lr_scheduler._LRScheduler): Learning rate scheduler.
+        epochs (int): Number of training epochs.
+        train_dataloader (torch.utils.data.DataLoader): DataLoader for training data.
+        val_dataloader (torch.utils.data.DataLoader): DataLoader for validation data.
+        logger (object): Logger for reporting metrics and plots.
+        with_pca (bool): Whether to use PCA for dimensionality reduction.
+        embed_size (int): Size of the embedding layer. This value is used for cosine similarity classifier.
+        with_cos_head (bool): Whether to use a cosine distance head.
+        device (str): Device to run the training on ('cuda' or 'cpu').
+    """
     def __init__(self, description,
                  model,
                  criterion,
@@ -54,78 +70,24 @@ class Trainer:
     
     def _init_defaults(self):
         self.best_eer = 1
-        self.best_model_path = f"{self.work_dir}/best_model.pth"
         self.best_model_epoch = 0
         self.iter = 1
         self.pca = PCA(n_components=2)
         self.pca_id = 0
         self.current_epoch = 1
-        self.eer_plot_dir = os.path.join(self.work_dir , "eer_plots")
         self.patience = 10
         self.patience_counter = 0
         self.aug_batch_count = 1
+        self.best_model_path = f"{self.work_dir}/best_model.pth"
         self.batch_dir = os.path.join(self.work_dir, "batch_images")
+        self.eer_plot_dir = os.path.join(self.work_dir , "eer_plots")
+        self.pca_plot_dir = os.path.join(self.work_dir, "pca_plots")
         
         os.makedirs(OUTPUT_DIR, exist_ok=True)
         os.makedirs(self.work_dir, exist_ok=True)
         os.makedirs(self.batch_dir, exist_ok=True)
-        os.makedirs(f"{self.work_dir}/pca_plots", exist_ok=True)
+        os.makedirs(self.pca_plot_dir, exist_ok=True)
         os.makedirs(self.eer_plot_dir, exist_ok=True)
-
-    def compute_embeddings_2d_plot(self, embeddings_tensor, labels_tensor, real_fake_tensor):
-        embeddings = embeddings_tensor.detach().cpu().numpy()
-        labels = labels_tensor.detach().cpu().numpy()
-        real_fake = real_fake_tensor.detach().cpu().numpy()
-        embeddings_2d = self.pca.fit_transform(embeddings)
-        embeddings_2d_normalized = (embeddings_2d - embeddings_2d.min()) / (embeddings_2d.max() - embeddings_2d.min())
-        plt.clf()
-        for i, label in enumerate(labels):
-            plt.text(embeddings_2d_normalized[i, 0], embeddings_2d_normalized[i, 1], f"{label}_{real_fake[i]}")
-        plt.title(f"PCA plot real vs fake {self.pca_id}")
-        plt.savefig(f"{self.work_dir}/pca_plots/pca_plot_{self.pca_id}.png")
-        only_real_embeddings = embeddings[real_fake == 0]
-        only_real_embeddings_2d = self.pca.fit_transform(only_real_embeddings)
-        only_real_embeddings_2d_normalized = (only_real_embeddings_2d - only_real_embeddings_2d.min()) / (only_real_embeddings_2d.max() - only_real_embeddings_2d.min())
-        labels_only_real = labels[real_fake == 0]
-
-        plt.clf()
-        plt.title(f"PCA plot real {self.pca_id}")
-        for i, label in enumerate(labels_only_real):
-            plt.text(only_real_embeddings_2d_normalized[i, 0], only_real_embeddings_2d_normalized[i, 1], f"{label}")
-        plt.savefig(f"{self.work_dir}/pca_plots/pca_plot_real_{self.pca_id}.png")
-        plt.clf()
-        self.pca_id += 1
-    
-    def compute_embeddings_2d_plot_for_first_batch(self):
-        embeddings = self.model(self.first_batch['images'].to(self.device))
-        embeddings = embeddings.detach().cpu().numpy()
-        labels = self.first_batch['labels'].detach().cpu().numpy()
-        real_fake = self.first_batch['real_fake'].detach().cpu().numpy()
-        if self.pca_id == 0:
-            embeddings_2d = self.pca.fit_transform(embeddings)
-        else:
-            embeddings_2d = self.pca.transform(embeddings)
-        embeddings_2d_normalized = (embeddings_2d - embeddings_2d.min()) / (embeddings_2d.max() - embeddings_2d.min())
-        plt.clf()
-        for i, label in enumerate(labels):
-            plt.text(embeddings_2d_normalized[i, 0], embeddings_2d_normalized[i, 1], f"{label}_{real_fake[i]}")
-        plt.title(f"PCA plot real vs fake {self.pca_id}")
-        plt.savefig(f"{self.work_dir}/pca_plots/pca_plot_fake_{self.pca_id}.png")
-        only_real_embeddings = embeddings[real_fake == 0]
-        if self.pca_id == 0:
-            only_real_embeddings_2d = self.pca.fit_transform(only_real_embeddings)
-        else:
-            only_real_embeddings_2d = self.pca.transform(only_real_embeddings)
-        only_real_embeddings_2d_normalized = (only_real_embeddings_2d - only_real_embeddings_2d.min()) / (only_real_embeddings_2d.max() - only_real_embeddings_2d.min())
-        labels_only_real = labels[real_fake == 0]
-
-        plt.clf()
-        plt.title(f"PCA plot real {self.pca_id}")
-        for i, label in enumerate(labels_only_real):
-            plt.text(only_real_embeddings_2d_normalized[i, 0], only_real_embeddings_2d_normalized[i, 1], f"{label}")
-        plt.savefig(f"{self.work_dir}/pca_plots/pca_plot_real_{self.pca_id}.png")
-        plt.clf()
-        self.pca_id += 1
     
     def train_loop(self):
         pbar = tqdm(self.train_dataloader)
@@ -137,32 +99,29 @@ class Trainer:
             images = batch["images"].to(self.device)
             labels = batch["labels"].to(self.device)
             real_fake = batch["real_fake"]
-            real_filter = real_fake == 0
             embeddings = self.model(images)
             if self.with_pca:
-                self.compute_embeddings_2d_plot_for_first_batch()
-                # if self.iter % 500 == 0 or self.iter == 1:
-                #     self.compute_embeddings_2d_plot(embeddings, labels, real_fake)
-            if self.cos_head is not None:
-                loss_cos = self.cos_head(embeddings[real_filter], labels[real_filter])
-                self.writer.add_scalar('Loss/cos_head', loss_cos.item(), self.iter)
+                if self.iter % 500 == 0 or self.iter == 1:
+                    self.compute_embeddings_2d_plot(embeddings, labels, real_fake)
 
             anc, pos, neg_real, neg_fake = self.miner(embeddings, labels, real_fake)
             loss_dict = self.criterion(anc, pos, neg_real, neg_fake)
-            total_loss = loss_dict['total_loss']
-            for k, v in loss_dict.items():
-                if "dist" in k:
-                    self.writer.add_scalar(f'Distance/{k}', v.item(), self.iter)
-                else:
-                    self.writer.add_scalar(f'Loss/{k}', v.item(), self.iter)
             if self.cos_head is not None:
-                total_loss += loss_cos
-            total_loss.backward()
+                real_filter = real_fake == 0
+                cos_loss = self.cos_head(embeddings[real_filter], labels[real_filter])
+                loss_dict['cos_loss'] = cos_loss
+            else:
+                cos_loss = 0
+            
+            self._log_losses_and_distances(loss_dict)
+            metric_loss = loss_dict['total_loss']
+            loss = metric_loss + cos_loss
+            loss.backward()
             self.optimizer.step()
             self.optimizer.zero_grad()
             if self.scheduler:
                 self.scheduler.step()
-            total_loss += total_loss.item()
+            total_loss += loss.item()
             self.iter += 1
             n_batches += 1
             
@@ -183,32 +142,70 @@ class Trainer:
                 real_fake = batch["real_fake"]
                 
                 embeddings = self.model(images).cpu()
-                
                 anchors, pos, neg_real, neg_fake = self.miner(embeddings, labels, real_fake)
                 all_anchors.append(anchors)
                 all_pos.append(pos)
                 all_neg_real.append(neg_real)
                 all_neg_fake.append(neg_fake)
 
-        all_anchors = torch.cat(all_anchors)
-        all_pos = torch.cat(all_pos)
-        all_neg_real = torch.cat(all_neg_real)
-        all_neg_fake = torch.cat(all_neg_fake)
-        sim_pos_pos_scores = F.cosine_similarity(all_anchors, all_pos).numpy()
-        sim_neg_real_scores = F.cosine_similarity(all_anchors, all_neg_real).numpy()
-        sim_neg_fake_scores = F.cosine_similarity(all_anchors, all_neg_fake).numpy()
-        len_labels = len(all_anchors)
-        pos_pos_labels = np.ones(len_labels)
-        neg_real_labels = np.zeros(len_labels)
-        neg_fake_labels = np.zeros(len_labels)
-        pos_pos_neg_scores = np.concatenate([sim_pos_pos_scores, sim_neg_real_scores])
-        pos_pos_fake_scores = np.concatenate([sim_pos_pos_scores, sim_neg_fake_scores])
-        pos_pos_neg_labels = np.concatenate([pos_pos_labels, neg_real_labels])
-        pos_pos_fake_labels = np.concatenate([pos_pos_labels, neg_fake_labels])
-        eer_neg_real = compute_eer(pos_pos_neg_labels, pos_pos_neg_scores, name="neg_real", save_dir=self.eer_plot_dir, plot_id=self.current_epoch, logger=self.logger)
-        eer_neg_fake = compute_eer(pos_pos_fake_labels, pos_pos_fake_scores, name="neg_fake", save_dir=self.eer_plot_dir, plot_id=self.current_epoch, logger=self.logger)
+            all_anchors = torch.cat(all_anchors)
+            all_pos = torch.cat(all_pos)
+            all_neg_real = torch.cat(all_neg_real)
+            all_neg_fake = torch.cat(all_neg_fake)
+            eer_neg_real, eer_neg_fake = self._get_eer_real_fake(all_anchors, all_pos, all_neg_real, all_neg_fake)
         return eer_neg_real, eer_neg_fake
 
+    def train_val(self):
+        for epoch in range(self.epochs):
+            if epoch == 0:
+                self.plot_first_batch(epoch)
+            self.current_epoch = epoch + 1
+            loss = self.train_loop()
+            self.writer.add_scalar('epoch_loss', loss, self.current_epoch)
+            eer_neg_real, eer_neg_fake = self.val_loop()
+            average_eer = (eer_neg_real + eer_neg_fake) / 2
+            self._log_eer(eer_neg_real, eer_neg_fake, average_eer)
+            if average_eer < self.best_eer:
+                self.patience_counter = 0
+                self.best_eer = average_eer
+                torch.save(self.model.state_dict(), self.best_model_path)
+                self.best_model_epoch = self.current_epoch
+            else:
+                self.patience_counter += 1
+                if self.patience_counter > self.patience:
+                    print(f"Early stopping at epoch {self.current_epoch}")
+                    break
+            print(f"EER: {average_eer} at epoch {self.current_epoch}")
+    
+    def compute_embeddings_2d_plot(self, embeddings_tensor, labels_tensor, real_fake_tensor):
+        embeddings = embeddings_tensor.detach().cpu().numpy()
+        labels = labels_tensor.detach().cpu().numpy()
+        real_fake = real_fake_tensor.detach().cpu().numpy()
+        embeddings_normalized = self._fit_pca(embeddings)
+        
+        plt.clf()
+        for i, label in enumerate(labels):
+            plt.text(embeddings_normalized[i, 0], embeddings_normalized[i, 1], f"{label}_{real_fake[i]}")
+        plt.title(f"PCA plot real vs fake {self.pca_id}")
+        plt.savefig(f"{self.work_dir}/pca_plots/pca_plot_{self.pca_id}.png")
+
+        only_real_embeddings = embeddings[real_fake == 0]
+        labels_only_real = labels[real_fake == 0]
+        only_real_embeddings_normalized = self._fit_pca(only_real_embeddings)
+
+        plt.clf()
+        plt.title(f"PCA plot real {self.pca_id}")
+        for i, label in enumerate(labels_only_real):
+            plt.text(only_real_embeddings_normalized[i, 0], only_real_embeddings_normalized[i, 1], f"{label}")
+        plt.savefig(f"{self.work_dir}/pca_plots/pca_plot_real_{self.pca_id}.png")
+        plt.clf()
+        self.pca_id += 1
+    
+    def _fit_pca(self, embeddings):
+        embeddings = self.pca.fit_transform(embeddings)
+        embeddings_normalized = (embeddings - embeddings.min()) / (embeddings.max() - embeddings.min())
+        return embeddings_normalized
+    
     def plot_first_batch(self, epoch):
         train_dataloader_iter = iter(self.train_dataloader) # Create a new iterator
         first_batch = next(train_dataloader_iter)
@@ -225,27 +222,31 @@ class Trainer:
         plt.imshow(grid.permute(1, 2, 0))
         plt.savefig(f"{self.batch_dir}/batch_{epoch}_{self.aug_batch_count}.jpg")
         plt.close()
-
-    def train_val(self):
-        for epoch in range(self.epochs):
-            self.plot_first_batch(epoch)
-            self.current_epoch = epoch + 1
-            loss = self.train_loop()
-            self.writer.add_scalar('epoch_loss', loss, self.current_epoch)
-            eer_neg_real, eer_neg_fake = self.val_loop()
-            self.writer.add_scalar('EER/neg_real', eer_neg_real, self.current_epoch)
-            self.writer.add_scalar('EER/neg_fake', eer_neg_fake, self.current_epoch)
-            average_eer = (eer_neg_real + eer_neg_fake) / 2
-            self.writer.add_scalar('EER/average', average_eer, self.current_epoch)
-            if average_eer < self.best_eer:
-                self.patience_counter = 0
-                self.best_eer = average_eer
-                torch.save(self.model.state_dict(), self.best_model_path)
-                self.best_model_epoch = self.current_epoch
-                shutil.copy(self.best_model_path, f"model.pth")
+    
+    def _get_eer_real_fake(self, anchor, positive, negative_real, negative_fake):
+        sim_pos_pos_scores = F.cosine_similarity(anchor, positive).numpy()
+        sim_neg_real_scores = F.cosine_similarity(anchor, negative_real).numpy()
+        sim_neg_fake_scores = F.cosine_similarity(anchor, negative_fake).numpy()
+        len_labels = len(anchor)
+        pos_pos_labels = np.ones(len_labels)
+        neg_real_labels = np.zeros(len_labels)
+        neg_fake_labels = np.zeros(len_labels)
+        pos_pos_neg_scores = np.concatenate([sim_pos_pos_scores, sim_neg_real_scores])
+        pos_pos_fake_scores = np.concatenate([sim_pos_pos_scores, sim_neg_fake_scores])
+        pos_pos_neg_labels = np.concatenate([pos_pos_labels, neg_real_labels])
+        pos_pos_fake_labels = np.concatenate([pos_pos_labels, neg_fake_labels])
+        eer_neg_real = compute_eer(pos_pos_neg_labels, pos_pos_neg_scores, name="neg_real", save_dir=self.eer_plot_dir, plot_id=self.current_epoch, logger=self.logger)
+        eer_neg_fake = compute_eer(pos_pos_fake_labels, pos_pos_fake_scores, name="neg_fake", save_dir=self.eer_plot_dir, plot_id=self.current_epoch, logger=self.logger)
+        return eer_neg_real, eer_neg_fake
+    
+    def _log_losses_and_distances(self, loss_dict):
+        for k, v in loss_dict.items():
+            if "dist" in k:
+                self.writer.add_scalar(f'Distance/{k}', v.item(), self.iter)
             else:
-                self.patience_counter += 1
-                if self.patience_counter > self.patience:
-                    print(f"Early stopping at epoch {self.current_epoch}")
-                    break
-            print(f"EER: {average_eer} at epoch {self.current_epoch}")
+                self.writer.add_scalar(f'Loss/{k}', v.item(), self.iter)
+    
+    def _log_eer(self, eer_neg_real, eer_neg_fake, average_eer):
+        self.writer.add_scalar('EER/neg_real', eer_neg_real, self.current_epoch)
+        self.writer.add_scalar('EER/neg_fake', eer_neg_fake, self.current_epoch)
+        self.writer.add_scalar('EER/average', average_eer, self.current_epoch)

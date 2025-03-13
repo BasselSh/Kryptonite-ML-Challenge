@@ -41,17 +41,21 @@ def elementwise_dist(x1: Tensor, x2: Tensor, p: int = 2) -> Tensor:
     return dist
 
 class QuadrupletLoss(Module):
+    """
+    Quadruplet Loss for training models with quadruplet samples.
 
+    This loss function is designed to minimize the distance between an anchor and a positive sample,
+    while maximizing the distance to negative samples (both real and fake).
+
+    Args:
+        margin (Optional[float]): Margin value, set ``None`` to use `SoftTripletLoss`.
+        no_fake_loss (bool): If True, the fake loss will not be included in the total loss.
+        reduction (str): Specifies the reduction method to apply to the output. Options are 'mean', 'sum', or 'none'.
+        lambda_fake (float): regularization factor for the fake loss.
+    """
     criterion_name = "quadruplet"  # for better logging
 
-    def __init__(self, margin: Optional[float] = 1, neg_real_weight=1, neg_fake_weight=1, no_fake_loss=False, reduction: str = "mean", lambda_fake=1, **kwargs):
-        """
-
-        Args:
-            margin: Margin value, set ``None`` to use `SoftTripletLoss`
-            reduction: ``mean``, ``sum`` or ``none``
-
-        """
+    def __init__(self, margin: float = 1, no_fake_loss: bool = False, reduction: str = "mean", lambda_fake: float = 1, **kwargs):
         assert reduction in ("mean", "sum", "none")
         assert (margin is None) or (margin > 0)
 
@@ -59,8 +63,6 @@ class QuadrupletLoss(Module):
 
         self.margin = margin
         self.reduction = reduction
-        self.neg_real_weight = neg_real_weight
-        self.neg_fake_weight = neg_fake_weight
         self.no_fake_loss = no_fake_loss
         self.lambda_fake = lambda_fake
 
